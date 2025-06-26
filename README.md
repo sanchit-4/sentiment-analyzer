@@ -73,6 +73,12 @@ Start the server
   npm run dev
 ```
 
+To view the database, run
+
+```bash
+  npx dotenv -e .env.local -- npx prisma studio
+```
+
 
 ## My Project Approach
 
