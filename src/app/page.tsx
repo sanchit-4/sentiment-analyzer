@@ -39,7 +39,7 @@ export default function HomePage() {
 
       router.push(`/results?${queryParams}`);
 
-    } catch {
+    } catch (err: any) {
       setError(err.message);
     } finally {
       setIsLoading(false);
