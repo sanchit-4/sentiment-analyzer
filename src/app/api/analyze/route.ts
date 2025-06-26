@@ -1,5 +1,3 @@
-// src/app/api/analyze/route.ts
-
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { PrismaClient } from '@prisma/client';
 import { NextResponse } from "next/server";
@@ -19,7 +17,6 @@ export async function POST(request: Request) {
 
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    // This is a carefully crafted prompt to ensure the model returns a structured JSON object.
     const prompt = `
       Analyze the sentiment of the following movie review.
       Classify it as "Positive", "Negative", or "Neutral".
@@ -34,10 +31,8 @@ export async function POST(request: Request) {
     const response = await result.response;
     const text = response.text();
 
-    // Clean and parse the JSON response from Gemini
     let analysis;
     try {
-        // The model sometimes wraps the JSON in ```json ... ```, so we extract it.
         const jsonString = text.replace(/```json\n?|\n?```/g, '').trim();
         analysis = JSON.parse(jsonString);
     } catch (e) {

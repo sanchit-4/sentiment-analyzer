@@ -1,11 +1,9 @@
-// src/app/results/page.tsx
 'use client';
 
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
-// A mapping for colors and icons based on sentiment
 const sentimentStyles = {
     Positive: {
         bgColor: 'bg-green-900/50',
@@ -75,7 +73,6 @@ function ResultsDisplay() {
   );
 }
 
-// We wrap the component in Suspense as a Next.js best practice for components that use useSearchParams
 export default function ResultsPage() {
   return (
       <main className="flex min-h-screen flex-col items-center justify-center p-8 bg-gray-900">
