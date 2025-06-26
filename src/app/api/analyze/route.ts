@@ -27,40 +27,44 @@ export async function POST(request: Request) {
 
     review = review.trim();
 
-    // --- THE FINAL FIX: ADDING SAFETY SETTINGS ---
-    // This tells Google not to block reviews with strong negative language, which is necessary for our use case.
     const safetySettings = [
-        {
-            category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-            threshold: HarmBlockThreshold.BLOCK_NONE,
-        },
-        {
-            category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-            threshold: HarmBlockThreshold.BLOCK_NONE,
-        },
-        {
-            category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-            threshold: HarmBlockThreshold.BLOCK_NONE,
-        },
-        {
-            category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-            threshold: HarmBlockThreshold.BLOCK_NONE,
-        },
+        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
     ];
 
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", safetySettings });
 
+    // --- THE EXPERT-LEVEL PROMPT WITH FEW-SHOT LEARNING ---
     const prompt = `
-      Your task is to perform sentiment analysis on a movie review.
-      Your response MUST be a single, valid JSON object and nothing else.
-      The JSON object must have two keys: "sentiment" and "explanation".
-      
-      "sentiment" must be one of these three exact strings: "Positive", "Negative", or "Neutral".
-      - Classify as "Neutral" if the review is mixed, purely factual, a question, or nonsensical.
-      
-      "explanation" must be a concise, one-sentence string justifying the sentiment.
+      You are an expert sentiment analysis AI for movie reviews. Your task is to analyze the following review text and provide a structured JSON response.
 
-      Analyze this review: "${review}"
+      Follow these rules STRICTLY:
+      1.  Your response MUST BE a single, valid JSON object and nothing else.
+      2.  The JSON object must have two keys: "sentiment" and "explanation".
+      3.  "sentiment" must be one of these three exact strings: "Positive", "Negative", or "Neutral".
+      4.  If a review contains a mix of strong positive and negative points, you MUST classify it as "Neutral".
+
+      Here are examples of how to perform the analysis:
+
+      ---
+      Review: "This movie was an absolute masterpiece, the acting was incredible!"
+      Correct JSON Output: {"sentiment": "Positive", "explanation": "The review uses strong positive language like 'masterpiece' and 'incredible'."}
+      ---
+      Review: "A total waste of time. The plot was boring and predictable."
+      Correct JSON Output: {"sentiment": "Negative", "explanation": "The review uses strong negative language like 'waste of time' and 'boring'."}
+      ---
+      Review: "The cinematography was breathtaking, and the score was hauntingly beautiful, but the lead actor's performance felt wooden."
+      Correct JSON Output: {"sentiment": "Neutral", "explanation": "The review praises the cinematography and score but criticizes the acting, making it a mixed opinion."}
+      ---
+      Review: "I absolutely loved the music, and the visuals were stunning, but everything else felt like an afterthought."
+      Correct JSON Output: {"sentiment": "Neutral", "explanation": "The review has strong positive points about music and visuals but negative points about the rest, resulting in a mixed sentiment."}
+      ---
+
+      Now, analyze the following review following the same rules and format.
+
+      Review: "${review}"
     `;
 
     const result = await model.generateContent(prompt);
