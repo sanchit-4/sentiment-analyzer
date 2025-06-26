@@ -7,8 +7,7 @@ import { NextResponse } from "next/server";
 const prisma = new PrismaClient();
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!);
 
-// --- THE "SUSPENDERS" FIX: A robust cleaner function ---
-// This function will find a JSON object even if it's wrapped in text or markdown.
+// This robust function finds a JSON object even if it's wrapped in text or markdown.
 function extractJson(text: string): string | null {
   const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```|({[\s\S]*})/);
   if (jsonMatch && (jsonMatch[1] || jsonMatch[2])) {
@@ -30,7 +29,7 @@ export async function POST(request: Request) {
 
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    // A direct, clear, and slightly simplified prompt that prioritizes the JSON instruction.
+    // A direct, clear, and simplified prompt that prioritizes the JSON instruction.
     const prompt = `
       Your task is to perform sentiment analysis on a movie review.
       Your response MUST be a single, valid JSON object and nothing else.
@@ -62,8 +61,8 @@ export async function POST(request: Request) {
     let analysis;
     try {
         analysis = JSON.parse(cleanedJsonString);
-    } catch {
-        console.error("Failed to parse the extracted JSON string:", cleanedJsonString, e);
+    } catch { // <-- CORRECTED FOR VERCEL: Removed unused '(e)'
+        console.error("Failed to parse the extracted JSON string:", cleanedJsonString);
         return NextResponse.json({ error: "The AI response format was unreadable." }, { status: 500 });
     }
 
@@ -79,7 +78,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ sentiment, explanation, reviewText: review, id: savedReview.id });
 
-  } catch (error) {
+  } catch (error) { // <-- This 'error' IS used in the console.log below, so it's OK.
     console.error("A server-side error occurred:", error);
     return NextResponse.json({ error: "An internal server error occurred." }, { status: 500 });
   }
