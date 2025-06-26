@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     let analysis;
     try {
         analysis = JSON.parse(cleanedJsonString);
-    } catch (e) {
+    } catch {
         console.error("Failed to parse the extracted JSON string:", cleanedJsonString, e);
         return NextResponse.json({ error: "The AI response format was unreadable." }, { status: 500 });
     }
