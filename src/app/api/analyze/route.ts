@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     try {
         const jsonString = text.replace(/```json\n?|\n?```/g, '').trim();
         analysis = JSON.parse(jsonString);
-    } catch (_e) {
+    } catch {
         console.error("Failed to parse Gemini response:", text);
         return NextResponse.json({ error: "Failed to analyze sentiment due to invalid AI response format." }, { status: 500 });
     }

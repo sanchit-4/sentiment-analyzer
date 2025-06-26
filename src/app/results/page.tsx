@@ -50,7 +50,7 @@ function ResultsDisplay() {
 
       <div className="mb-6">
           <h2 className="text-lg font-semibold text-gray-400 mb-2">Original Review:</h2>
-            <p className="bg-gray-900 p-4 rounded-md border border-gray-700 italic">"{reviewText}"</p>
+            <p className="bg-gray-900 p-4 rounded-md border border-gray-700 italic">&quot;{reviewText}&quot;</p>
       </div>
 
       <div className={`p-6 rounded-lg ${styles.bgColor} border ${styles.borderColor}`}>
