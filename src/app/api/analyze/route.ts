@@ -1,70 +1,94 @@
+// src/app/api/analyze/route.ts
+
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { PrismaClient } from '@prisma/client';
 import { NextResponse } from "next/server";
 
-// Initialize Prisma and Google AI clients
 const prisma = new PrismaClient();
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!);
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { review } = body;
+    let { review } = body;
 
-    if (!review) {
-      return NextResponse.json({ error: "Review text is required" }, { status: 400 });
+    // --- PILLAR 3: DEFENSIVE BACKEND LOGIC (Input Validation) ---
+    if (!review || typeof review !== 'string' || review.trim().length < 10) {
+      return NextResponse.json({ error: "Review text must be at least 10 characters long." }, { status: 400 });
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    // Sanitize and trim the input
+    review = review.trim();
 
+    // --- PILLAR 2: GUARANTEED JSON OUTPUT ---
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: {
+        responseMimeType: "application/json",
+      },
+    });
+
+    // --- PILLAR 1: THE EXPERT-LEVEL PROMPT ---
     const prompt = `
-      Analyze the sentiment of the following movie review.
-      Classify it as "Positive", "Negative", or "Neutral".
-      Provide a brief, one-sentence explanation for your classification.
-      The review is: "${review}"
+      You are an expert sentiment analysis AI for movie reviews. Your task is to analyze the following review text and provide a structured JSON response.
 
-      Return your analysis as a JSON object with two keys: "sentiment" and "explanation".
-      For example: {"sentiment": "Positive", "explanation": "The review uses strong positive language like 'amazing' and 'masterpiece'."}
+      Follow these rules STRICTLY:
+      1.  Classify the sentiment into one of three exact categories: "Positive", "Negative", or "Neutral".
+      2.  "Positive": The review expresses clear enjoyment, praise, or recommendation.
+      3.  "Negative": The review expresses clear dislike, criticism, or warns against watching.
+      4.  "Neutral": The review is one of the following:
+          - A mix of significant positive and negative points.
+          - Purely factual, objective, or descriptive with no opinion.
+          - A question about the movie, not a review of it.
+          - Gibberish, nonsensical, or completely off-topic text.
+      5.  Provide a concise, one-sentence "explanation" that justifies your sentiment classification. For "Neutral" cases, your explanation should clarify why (e.g., "The text is a question, not a review.").
+      6.  Your output MUST BE a valid JSON object. Do not include any text, markdown, or explanations outside of the JSON structure.
+
+      Here are some examples of perfect analysis:
+
+      Review: "This movie was an absolute masterpiece, the acting was incredible!"
+      Correct JSON Output: {"sentiment": "Positive", "explanation": "The review uses strong positive language like 'masterpiece' and 'incredible'."}
+      
+      Review: "The cinematography was breathtaking, but the lead actor's performance felt wooden and uninspired."
+      Correct JSON Output: {"sentiment": "Neutral", "explanation": "The review praises the cinematography but criticizes the acting, making it a mixed opinion."}
+
+      Review: "where can i watch this movie online?"
+      Correct JSON Output: {"sentiment": "Neutral", "explanation": "The provided text is a question asking for information, not an opinionated review."}
+
+      Review: "asdfghjkl qwerty"
+      Correct JSON Output: {"sentiment": "Neutral", "explanation": "The text appears to be nonsensical and does not contain a valid review."}
+
+      Now, analyze this review:
+      Review: "${review}"
     `;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    const text = response.text();
-
     let analysis;
+
     try {
-        const jsonString = text.replace(/```json\n?|\n?```/g, '').trim();
-        analysis = JSON.parse(jsonString);
+        analysis = JSON.parse(response.text());
     } catch {
-        console.error("Failed to parse Gemini response:", text);
-        return NextResponse.json({ error: "Failed to analyze sentiment due to invalid AI response format." }, { status: 500 });
+        console.error("Critical: AI returned malformed JSON despite JSON mode.", response.text());
+        return NextResponse.json({ error: "The AI failed to generate a valid response." }, { status: 500 });
     }
 
+    // --- PILLAR 3: DEFENSIVE BACKEND LOGIC (Output Validation) ---
     const { sentiment, explanation } = analysis;
-
-    if (!['Positive', 'Negative', 'Neutral'].includes(sentiment)) {
-        return NextResponse.json({ error: "Invalid sentiment received from AI." }, { status: 500 });
+    if (!sentiment || !['Positive', 'Negative', 'Neutral'].includes(sentiment) || !explanation || typeof explanation !== 'string') {
+        console.error("Critical: AI returned a valid JSON but with an invalid structure.", analysis);
+        return NextResponse.json({ error: "The AI response had an invalid format." }, { status: 500 });
     }
 
-    // Store the result in the database
+    // Store the valid result in the database
     const savedReview = await prisma.review.create({
-      data: {
-        text: review,
-        sentiment: sentiment,
-        explanation: explanation,
-      },
+      data: { text: review, sentiment, explanation },
     });
 
-    // Return the structured response
-    return NextResponse.json({
-      sentiment,
-      explanation,
-      reviewText: review,
-      id: savedReview.id,
-    });
+    return NextResponse.json({ sentiment, explanation, reviewText: review, id: savedReview.id });
 
   } catch (error) {
-    console.error(error);
+    console.error("A server-side error occurred:", error);
     return NextResponse.json({ error: "An internal server error occurred." }, { status: 500 });
   }
 }

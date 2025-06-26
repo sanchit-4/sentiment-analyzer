@@ -10,45 +10,48 @@ export default function HomePage() {
   const router = useRouter();
 
   const handleSubmit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!review.trim()) {
-      setError('Review cannot be empty.');
-      return;
-    }
-    setIsLoading(true);
-    setError(null);
+        event.preventDefault();
+        
+        if (review.trim().length < 10) {
+          setError('Please enter a review that is at least 10 characters long.');
+          return;
+        }
+        
+        setIsLoading(true);
+        setError(null);
 
-    try {
-      const response = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ review }),
-      });
+        try {
+          const response = await fetch('/api/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ review }),
+          });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Something went wrong');
-      }
+          const data = await response.json();
 
-      const data = await response.json();
-      const queryParams = new URLSearchParams({
-          sentiment: data.sentiment,
-          explanation: data.explanation,
-          reviewText: data.reviewText,
-      }).toString();
+          if (!response.ok) {
+            // This will now catch specific errors from our backend like "Review too short"
+            throw new Error(data.error || 'An unknown error occurred.');
+          }
 
-      router.push(`/results?${queryParams}`);
+          const queryParams = new URLSearchParams({
+              sentiment: data.sentiment,
+              explanation: data.explanation,
+              reviewText: data.reviewText,
+          }).toString();
 
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('An unexpected error occurred');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
+          router.push(`/results?${queryParams}`);
+
+        } catch (err: unknown) {
+          if (err instanceof Error) {
+            setError(err.message);
+          } else {
+            setError('An unknown error occurred.');
+          }
+        } finally {
+          setIsLoading(false);
+        }
+      };
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8 bg-gray-900">
